@@ -1,0 +1,328 @@
+openapi: 3.0.3
+info:
+  title: Customer Profile API
+  description: >
+    A fictional, synthetic API used to manage core customer profile records
+    for demonstration purposes. This specification and all data within it
+    are entirely made up and do not represent any real system, company,
+    or dataset. It exists solely to demonstrate how a Business Analyst can
+    turn a machine-readable OpenAPI specification into a human-readable
+    API integration requirements document.
+  version: "1.2.0"
+  contact:
+    name: Sample Integration Team
+    email: integration-team@example-fictional-corp.test
+servers:
+  - url: https://api.example-fictional-corp.test/v1
+    description: Fictional sandbox environment used only for this demonstration.
+
+tags:
+  - name: Customers
+    description: Operations for creating, retrieving, and updating customer profile records.
+
+paths:
+  /customers/{id}:
+    get:
+      operationId: getCustomerById
+      tags: [Customers]
+      summary: Retrieve a single customer profile
+      description: >
+        Returns the current profile record for a single customer, identified
+        by their unique customer identifier. Used by downstream systems that
+        need to display or verify a customer's core profile details, such as
+        a self-service portal or an agent-facing servicing screen.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier assigned to the customer profile.
+          schema:
+            type: string
+            format: uuid
+        - name: includeArchived
+          in: query
+          required: false
+          description: >
+            When true, allows retrieval of a customer profile that has been
+            archived (soft-deleted). Defaults to false.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: The customer profile was found and is returned in the response body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "400":
+          description: >
+            The request was malformed, such as an invalid identifier format
+            that does not match the expected UUID pattern.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No customer profile exists for the supplied identifier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: >
+            An unexpected internal error occurred while retrieving the
+            customer profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      operationId: updateCustomerById
+      tags: [Customers]
+      summary: Update selected fields on an existing customer profile
+      description: >
+        Applies a partial update to an existing customer profile. Only the
+        fields supplied in the request body are changed; all other existing
+        field values are left untouched. Typically used when a customer
+        updates their contact details or preferences through a self-service
+        channel.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier assigned to the customer profile to update.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerProfileUpdateRequest"
+      responses:
+        "200":
+          description: The customer profile was updated successfully and is returned in the response body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "400":
+          description: >
+            The request body failed validation, such as an invalid email
+            address format or an unsupported preferred contact method.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No customer profile exists for the supplied identifier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: >
+            The update could not be applied because the profile was modified
+            by another process since it was last read (an optimistic
+            concurrency conflict).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: >
+            An unexpected internal error occurred while updating the
+            customer profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /customers:
+    post:
+      operationId: createCustomer
+      tags: [Customers]
+      summary: Create a new customer profile
+      description: >
+        Creates a new customer profile record. Typically invoked by an
+        onboarding workflow the first time a new customer is registered
+        with the business, for example after a new account application is
+        approved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerProfileCreateRequest"
+      responses:
+        "201":
+          description: The customer profile was created successfully and is returned in the response body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "400":
+          description: >
+            The request body failed validation, such as a missing required
+            field or an invalid date of birth format.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: >
+            A customer profile already exists with the same unique business
+            identifier (for example, the same email address or external
+            reference number).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: >
+            An unexpected internal error occurred while creating the
+            customer profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    CustomerProfile:
+      type: object
+      description: The full representation of a customer profile record.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier assigned to the customer profile.
+        firstName:
+          type: string
+          description: The customer's legal first name.
+        lastName:
+          type: string
+          description: The customer's legal last name.
+        emailAddress:
+          type: string
+          format: email
+          description: The customer's primary email address used for account communications.
+        phoneNumber:
+          type: string
+          description: The customer's primary contact phone number, in E.164 format.
+        dateOfBirth:
+          type: string
+          format: date
+          description: The customer's date of birth, used for identity verification.
+        preferredContactMethod:
+          type: string
+          enum: [EMAIL, PHONE, MAIL]
+          description: >
+            The channel the customer has indicated they prefer to be
+            contacted through.
+        status:
+          type: string
+          enum: [ACTIVE, ARCHIVED, PENDING_VERIFICATION]
+          description: The current lifecycle status of the customer profile.
+        externalReferenceNumber:
+          type: string
+          description: >
+            A business-assigned reference number used to correlate this
+            profile with records in other internal systems.
+        createdAt:
+          type: string
+          format: date-time
+          description: The timestamp at which the profile was originally created.
+        updatedAt:
+          type: string
+          format: date-time
+          description: The timestamp at which the profile was last modified.
+      required:
+        - id
+        - firstName
+        - lastName
+        - emailAddress
+        - status
+        - createdAt
+
+    CustomerProfileCreateRequest:
+      type: object
+      description: The payload required to create a new customer profile.
+      properties:
+        firstName:
+          type: string
+          description: The customer's legal first name.
+        lastName:
+          type: string
+          description: The customer's legal last name.
+        emailAddress:
+          type: string
+          format: email
+          description: The customer's primary email address used for account communications.
+        phoneNumber:
+          type: string
+          description: The customer's primary contact phone number, in E.164 format.
+        dateOfBirth:
+          type: string
+          format: date
+          description: The customer's date of birth, used for identity verification.
+        preferredContactMethod:
+          type: string
+          enum: [EMAIL, PHONE, MAIL]
+          description: >
+            The channel the customer has indicated they prefer to be
+            contacted through.
+        externalReferenceNumber:
+          type: string
+          description: >
+            A business-assigned reference number used to correlate this
+            profile with records in other internal systems.
+      required:
+        - firstName
+        - lastName
+        - emailAddress
+
+    CustomerProfileUpdateRequest:
+      type: object
+      description: >
+        The payload for a partial update to an existing customer profile.
+        Any field omitted from the request is left unchanged.
+      properties:
+        emailAddress:
+          type: string
+          format: email
+          description: The customer's primary email address used for account communications.
+        phoneNumber:
+          type: string
+          description: The customer's primary contact phone number, in E.164 format.
+        preferredContactMethod:
+          type: string
+          enum: [EMAIL, PHONE, MAIL]
+          description: >
+            The channel the customer has indicated they prefer to be
+            contacted through.
+        status:
+          type: string
+          enum: [ACTIVE, ARCHIVED, PENDING_VERIFICATION]
+          description: The current lifecycle status of the customer profile.
+      required: []
+
+    ErrorResponse:
+      type: object
+      description: A standard error payload returned when a request cannot be fulfilled.
+      properties:
+        errorCode:
+          type: string
+          description: A short machine-readable code identifying the type of error.
+        message:
+          type: string
+          description: A human-readable description of what went wrong.
+        traceId:
+          type: string
+          description: A correlation identifier that can be used to look up this request in system logs.
+      required:
+        - errorCode
+        - message
